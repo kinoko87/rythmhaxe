@@ -1,5 +1,6 @@
 package beatcode;
 
+import flixel.FlxG;
 import flixel.FlxState;
 
 class RythmState extends FlxState
