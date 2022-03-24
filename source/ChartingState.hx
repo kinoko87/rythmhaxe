@@ -124,7 +124,7 @@ class ChartingState extends RythmState
 		var sLen:Float = Conductor.songLen;
 		var totalGridHeight:Float = 0;
 
-		while (totalGridHeight < sLen)
+		while (totalGridHeight < sLen / 30)
 		{
 			var grid:FlxSprite = FlxGridOverlay.create(GRID_SIZE, GRID_SIZE, GRID_SIZE * 4, GRID_SIZE);
 			totalGridHeight += GRID_SIZE;
@@ -142,10 +142,12 @@ class ChartingState extends RythmState
 	{
 		var data = Math.floor(FlxG.mouse.x / GRID_SIZE);
 		trace(data);
-		var songPos = mapYToSongPosition(FlxG.mouse.y);
+		var songPos = mapYToSongPosition(FlxG.mouse.y) / 30;
 
 		var note = [songPos, data];
 		chart.notes.push(note);
+
+		trace("note_data_shit: " + note);
 
 		updateGrid();
 		return note;
@@ -157,7 +159,7 @@ class ChartingState extends RythmState
 		noteSprite = new FlxSprite().makeGraphic(GRID_SIZE, GRID_SIZE, FlxColor.BLUE);
 		add(noteSprite);
 		var latestNote = chart.notes[chart.notes.length - 1];
-		noteSprite.y = mapSongPositionToY(latestNote[0]);
+		noteSprite.y = mapSongPositionToY(latestNote[0] * 30);
 		noteSprite.x = gridGroup.members[0].x + latestNote[1] * GRID_SIZE;
 		// trace(latestNote + " sprite made");
 	}

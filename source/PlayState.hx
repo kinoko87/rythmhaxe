@@ -72,7 +72,6 @@ class PlayState extends RythmState
 			{
 				note.x = thing.x;
 				note.y = (thing.y + (Conductor.songPos - note.songTime) * (0.45 * FlxMath.roundDecimal(chart.speed, 2)));
-				if (note.songTime <= Conductor.songPos)
 			});
 		}
 	}
