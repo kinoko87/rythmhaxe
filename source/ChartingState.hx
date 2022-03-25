@@ -12,6 +12,8 @@ import flixel.math.FlxPoint;
 import flixel.text.FlxText;
 import flixel.util.FlxColor;
 import haxe.Json;
+import openfl.events.Event;
+import openfl.net.FileFilter;
 import openfl.net.FileReference;
 
 class ChartingState extends RythmState
@@ -24,7 +26,12 @@ class ChartingState extends RythmState
 	private var maxTime:Float;
 	private var time:Float;
 
+	private var strumLine:FlxSprite;
+
 	private var gridGroup:FlxTypedGroup<FlxSprite>;
+	private var noteGroup:FlxTypedGroup<Note>;
+
+	private var divisor:Float = 20;
 
 	private var camFollow:FlxObject;
 
@@ -54,15 +61,19 @@ class ChartingState extends RythmState
 	{
 		gridGroup = new FlxTypedGroup<FlxSprite>();
 		add(gridGroup);
+		noteGroup = new FlxTypedGroup<Note>();
+		add(noteGroup);
 
 		FlxG.sound.playMusic('assets/music/blammed.ogg');
 		Conductor.song.pause();
 
 		generateGrid();
 
-		camFollow = new FlxObject(FlxG.camera.x, FlxG.camera.y, 1, 1);
-		add(camFollow);
-		FlxG.camera.follow(camFollow, LOCKON);
+		strumLine = new FlxSprite(0, 0).makeGraphic(FlxG.width, 10, FlxColor.PURPLE);
+		strumLine.alpha = .5;
+		add(strumLine);
+
+		FlxG.camera.follow(strumLine, LOCKON);
 
 		minY = 0;
 		maxY = gridGroup.members[gridGroup.length - 1].y + GRID_SIZE;
@@ -73,6 +84,25 @@ class ChartingState extends RythmState
 
 	override function update(elapsed:Float)
 	{
+		strumLine.y = mapSongPositionToY(Conductor.songPos);
+
+		if (FlxG.keys.justPressed.SPACE)
+		{
+			if (Conductor.song.playing)
+				Conductor.song.pause();
+			else
+				Conductor.song.play();
+		}
+
+		if (FlxG.keys.pressed.W)
+		{
+			Conductor.song.time -= Conductor.stepCrochet;
+		}
+		else if (FlxG.keys.pressed.S)
+		{
+			Conductor.song.time += Conductor.stepCrochet;
+		}
+
 		if (FlxG.keys.justPressed.ENTER)
 			FlxG.switchState(new PlayState());
 
@@ -93,6 +123,8 @@ class ChartingState extends RythmState
 			addNote();
 		if (FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.S)
 			save();
+		if (FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.L)
+			load();
 
 		super.update(elapsed);
 	}
@@ -124,7 +156,7 @@ class ChartingState extends RythmState
 		var sLen:Float = Conductor.songLen;
 		var totalGridHeight:Float = 0;
 
-		while (totalGridHeight < sLen / 30)
+		while (totalGridHeight < sLen / divisor)
 		{
 			var grid:FlxSprite = FlxGridOverlay.create(GRID_SIZE, GRID_SIZE, GRID_SIZE * 4, GRID_SIZE);
 			totalGridHeight += GRID_SIZE;
@@ -132,6 +164,10 @@ class ChartingState extends RythmState
 				grid.y = gridGroup.members[gridGroup.members.length - 1].y + GRID_SIZE;
 			else
 				grid.y = minY;
+
+			grid.screenCenter(X);
+			grid.x += GRID_SIZE;
+
 			gridGroup.add(grid);
 		}
 
@@ -142,7 +178,7 @@ class ChartingState extends RythmState
 	{
 		var data = Math.floor(FlxG.mouse.x / GRID_SIZE);
 		trace(data);
-		var songPos = mapYToSongPosition(FlxG.mouse.y) / 30;
+		var songPos = mapYToSongPosition(FlxG.mouse.y) / divisor;
 
 		var note = [songPos, data];
 		chart.notes.push(note);
@@ -155,12 +191,12 @@ class ChartingState extends RythmState
 
 	private function updateGrid()
 	{
-		var noteSprite:FlxSprite;
-		noteSprite = new FlxSprite().makeGraphic(GRID_SIZE, GRID_SIZE, FlxColor.BLUE);
-		add(noteSprite);
+		var noteSprite:Note;
 		var latestNote = chart.notes[chart.notes.length - 1];
-		noteSprite.y = mapSongPositionToY(latestNote[0] * 30);
-		noteSprite.x = gridGroup.members[0].x + latestNote[1] * GRID_SIZE;
+		noteSprite = new Note(latestNote[0], latestNote[1]);
+		noteGroup.add(noteSprite);
+		noteSprite.y = mapSongPositionToY(latestNote[0] * divisor);
+		noteSprite.x = gridGroup.members[0].x + (latestNote[1] % 4) * GRID_SIZE;
 		// trace(latestNote + " sprite made");
 	}
 
@@ -179,6 +215,51 @@ class ChartingState extends RythmState
 	private inline function seek(by:Float)
 	{
 		return Conductor.song.time += by;
+	}
+
+	private function rerenderAllNotes()
+	{
+		noteGroup.clear();
+
+		for (i in chart.notes)
+		{
+			var note:Note = new Note(i[0], i[1]);
+			note.x = gridGroup.members[0].x + (i[1] % 4) * GRID_SIZE;
+			note.y = mapSongPositionToY(i[0]) * divisor;
+			noteGroup.add(note);
+		}
+	}
+
+	private function load()
+	{
+		var fr:FileReference = new FileReference();
+		fr.addEventListener(Event.SELECT, load_onSelect);
+		fr.addEventListener(Event.CANCEL, load_onCancel);
+		fr.browse([new FileFilter("JSON files", "*.json")]);
+	}
+
+	@:noCompletion
+	private function load_onSelect(e:Event)
+	{
+		var fr:FileReference = cast(e.target, FileReference);
+		fr.addEventListener(Event.COMPLETE, load_onComplete);
+		fr.load();
+	}
+
+	@:noCompletion
+	private function load_onComplete(e:Event)
+	{
+		var fr:FileReference = cast(e.target, FileReference);
+		chart = null;
+		chart = cast Json.parse(fr.data.toString());
+		fr.removeEventListener(Event.COMPLETE, load_onComplete);
+		rerenderAllNotes();
+	}
+
+	@:noCompletion
+	private function load_onCancel(e:Event)
+	{
+		trace("cancelled!");
 	}
 
 	private function save()
