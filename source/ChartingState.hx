@@ -70,7 +70,9 @@ class ChartingState extends RythmState
 		generateGrid();
 
 		strumLine = new FlxSprite(0, 0).makeGraphic(FlxG.width, 10, FlxColor.PURPLE);
-		strumLine.alpha = .5;
+		strumLine.x -= (FlxG.width / 2) -= GRID_SIZE * 2;
+
+		strumLine.alpha = .3;
 		add(strumLine);
 
 		FlxG.camera.follow(strumLine, LOCKON);
@@ -106,21 +108,15 @@ class ChartingState extends RythmState
 		if (FlxG.keys.justPressed.ENTER)
 			FlxG.switchState(new PlayState());
 
-		var oldCamPosition = new FlxPoint(FlxG.camera.x, FlxG.camera.y);
-
-		if (FlxG.keys.justPressed.UP)
-			camFollow.y -= GRID_SIZE;
-		else if (FlxG.keys.justPressed.DOWN)
-			camFollow.y += GRID_SIZE;
-
-		if (FlxG.camera.x != oldCamPosition.x && FlxG.camera.y != oldCamPosition.y)
-		{
-			setGridsStatus();
-			trace('sust');
-		}
+		manageGrids();
 
 		if (FlxG.keys.justPressed.E)
-			addNote();
+		{
+			if (!FlxG.mouse.overlaps(noteGroup))
+				addNote();
+			else
+				removeNote();
+		}
 		if (FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.S)
 			save();
 		if (FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.L)
@@ -129,34 +125,34 @@ class ChartingState extends RythmState
 		super.update(elapsed);
 	}
 
-	private function setGridsStatus()
+	private function manageGrids()
 	{
-		#if debug
-		var currentGridsAlive:Int = 0;
-		#end
-
-		gridGroup.forEach(function(grid:FlxSprite)
+		for (i in gridGroup)
 		{
-			if (!grid.isOnScreen(FlxG.camera))
-				grid.kill();
-			else
-				grid.revive();
-		});
+			if (!i.isOnScreen(FlxG.camera) && i.alive)
+			{
+				i.kill();
+			}
+			else if (i.isOnScreen(FlxG.camera) && !i.alive)
+			{
+				i.revive();
+			}
+		}
 
 		#if debug
-		gridGroup.forEachAlive(function(grid:FlxSprite)
+		var aliveCtr = 0;
+		gridGroup.forEachAlive(function(s:FlxSprite)
 		{
-			currentGridsAlive += 1;
+			aliveCtr++;
 		});
 		#end
 	}
 
 	private function generateGrid()
 	{
-		var sLen:Float = Conductor.songLen;
 		var totalGridHeight:Float = 0;
 
-		while (totalGridHeight < sLen / divisor)
+		while (totalGridHeight < Conductor.songLen / divisor)
 		{
 			var grid:FlxSprite = FlxGridOverlay.create(GRID_SIZE, GRID_SIZE, GRID_SIZE * 4, GRID_SIZE);
 			totalGridHeight += GRID_SIZE;
@@ -164,9 +160,6 @@ class ChartingState extends RythmState
 				grid.y = gridGroup.members[gridGroup.members.length - 1].y + GRID_SIZE;
 			else
 				grid.y = minY;
-
-			grid.screenCenter(X);
-			grid.x += GRID_SIZE;
 
 			gridGroup.add(grid);
 		}
@@ -176,28 +169,50 @@ class ChartingState extends RythmState
 
 	private function addNote()
 	{
-		var data = Math.floor(FlxG.mouse.x / GRID_SIZE);
-		trace(data);
+		var data = Math.floor(FlxG.mouse.x / GRID_SIZE) % 4;
+		trace('raw: ' + FlxG.mouse.x / GRID_SIZE + '\nsemi-raw(floored): ' + Math.floor(FlxG.mouse.x / GRID_SIZE) + '\nunraw: ' + data);
 		var songPos = mapYToSongPosition(FlxG.mouse.y) / divisor;
 
 		var note = [songPos, data];
 		chart.notes.push(note);
-
-		trace("note_data_shit: " + note);
-
-		updateGrid();
+		addNoteGraphics();
+		trace("Added note: " + note);
 		return note;
 	}
 
-	private function updateGrid()
+	private function removeNote()
+	{
+		noteGroup.forEachAlive(function(note:Note)
+		{
+			if (FlxG.mouse.overlaps(note))
+			{
+				for (i in chart.notes)
+				{
+					if (note.songTime == i[0] && note.data == i[1])
+					{
+						chart.notes.remove(i);
+						inline removeNoteGraphics(note);
+						trace('Removed Note: ' + i);
+					}
+				}
+			}
+		});
+	}
+
+	private function addNoteGraphics()
 	{
 		var noteSprite:Note;
 		var latestNote = chart.notes[chart.notes.length - 1];
 		noteSprite = new Note(latestNote[0], latestNote[1]);
 		noteGroup.add(noteSprite);
 		noteSprite.y = mapSongPositionToY(latestNote[0] * divisor);
-		noteSprite.x = gridGroup.members[0].x + (latestNote[1] % 4) * GRID_SIZE;
+		noteSprite.x = gridGroup.members[0].x + (latestNote[1]) * GRID_SIZE;
 		// trace(latestNote + " sprite made");
+	}
+
+	private function removeNoteGraphics(note:Note)
+	{
+		noteGroup.remove(note);
 	}
 
 	private function mapYToSongPosition(y:Float)
