@@ -1,5 +1,6 @@
 package;
 
+import charting.ChartingState;
 import flixel.FlxGame;
 import flixel.FlxState;
 import openfl.display.Sprite;

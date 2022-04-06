@@ -1,4 +1,4 @@
-package;
+package charting;
 
 import beatcode.Conductor;
 import beatcode.RythmState;
@@ -35,7 +35,11 @@ class ChartingState extends RythmState
 
 	private var camFollow:FlxObject;
 
+	private var hologram:FlxSprite;
+
 	private static inline final GRID_SIZE:Int = 40;
+
+	private var dragSelectBox:FlxSprite;
 
 	public function new(chart:Chart)
 	{
@@ -72,6 +76,10 @@ class ChartingState extends RythmState
 		strumLine = new FlxSprite(0, 0).makeGraphic(FlxG.width, 10, FlxColor.PURPLE);
 		strumLine.x -= (FlxG.width / 2) -= GRID_SIZE * 2;
 
+		hologram = new FlxSprite().makeGraphic(GRID_SIZE, GRID_SIZE, FlxColor.BLUE);
+		hologram.alpha = .3;
+		add(hologram);
+
 		strumLine.alpha = .3;
 		add(strumLine);
 
@@ -81,12 +89,24 @@ class ChartingState extends RythmState
 		maxY = gridGroup.members[gridGroup.length - 1].y + GRID_SIZE;
 		minTime = 0;
 		maxTime = Conductor.songLen;
+
 		super.create();
 	}
+
+	public var copiedNotes:Array<Array<Dynamic>> = [];
 
 	override function update(elapsed:Float)
 	{
 		strumLine.y = mapSongPositionToY(Conductor.songPos);
+
+		FlxG.sound.music.looped = true;
+
+		if (!FlxG.keys.pressed.SHIFT)
+			hologram.y = Math.floor(FlxG.mouse.y / GRID_SIZE) * GRID_SIZE;
+		else
+			hologram.y = FlxG.mouse.y;
+
+		hologram.x = Math.floor(FlxG.mouse.x / GRID_SIZE) * GRID_SIZE;
 
 		if (FlxG.keys.justPressed.SPACE)
 		{
@@ -95,6 +115,9 @@ class ChartingState extends RythmState
 			else
 				Conductor.song.play();
 		}
+
+		if (FlxG.keys.pressed.V)
+			trace(Conductor.songPos);
 
 		if (FlxG.keys.pressed.W)
 		{
@@ -106,23 +129,116 @@ class ChartingState extends RythmState
 		}
 
 		if (FlxG.keys.justPressed.ENTER)
+		{
 			FlxG.switchState(new PlayState());
+			// PlayState.chart = chart;
+		}
 
 		manageGrids();
 
 		if (FlxG.keys.justPressed.E)
 		{
-			if (!FlxG.mouse.overlaps(noteGroup))
-				addNote();
-			else
+			if (!FlxG.mouse.overlaps(noteGroup) || FlxG.mouse.overlaps(noteGroup) && FlxG.keys.pressed.CONTROL)
+				addNote(hologram.y);
+			else if (FlxG.mouse.overlaps(noteGroup) && !FlxG.keys.pressed.CONTROL)
 				removeNote();
 		}
+		if (FlxG.keys.justPressed.X)
+			addNote(strumLine.y);
 		if (FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.S)
 			save();
 		if (FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.L)
 			load();
 
 		super.update(elapsed);
+
+		manageMouse();
+	}
+
+	var isDragging:Bool = false;
+	var dragXStart:Float;
+	var dragYStart:Float;
+
+	function manageMouse()
+	{
+		if (/*FlxG.keys.pressed.CONTROL &&*/ FlxG.mouse.pressed)
+		{
+			if (!isDragging)
+			{
+				dragXStart = FlxG.mouse.x;
+				dragYStart = FlxG.mouse.y;
+				isDragging = true;
+				if (dragSelectBox == null)
+				{
+					dragSelectBox = new FlxSprite(dragXStart, dragYStart);
+					if (dragSelectBox.alpha != 0.4)
+						dragSelectBox.alpha = 0.4;
+					add(dragSelectBox);
+				}
+			}
+			else
+			{
+				var dragXEnd:Float;
+				var dragYEnd:Float;
+				dragXEnd = FlxG.mouse.x;
+				dragYEnd = FlxG.mouse.y;
+
+				var sumX = dragXEnd - dragXStart;
+				var sumY = dragYEnd - dragYStart;
+
+				/*
+					if curMouseX is positive, set boxX to initMouseX, and boxWidth to curMouseX-initMouseX
+					if curMouseX is negative, set boxX to curMouseX, and boxWidth to initMouseX-curMouseX
+				 */
+
+				if (sumY < 0)
+				{
+					var dey = dragYEnd;
+					dragYEnd = dragYStart;
+					dragYStart = dey;
+					dragSelectBox.y = dragYStart;
+					trace(dragXEnd, dragXStart);
+				}
+				else
+				{
+					var dsy = dragYStart;
+					dragYStart = dragYEnd;
+					dragYEnd = dsy;
+					dragSelectBox.y = dragYStart;
+				}
+
+				if (sumX < 0)
+				{
+					trace(dragXEnd, dragXStart);
+					var dex = dragXEnd;
+					dragXEnd = dragXStart;
+					dragXStart = dex;
+					dragSelectBox.x = dragXStart;
+					trace(dragXEnd, dragXStart);
+				}
+				else
+				{
+					var dsx = dragXStart;
+					dragXStart = dragXEnd;
+					dragXEnd = dsx;
+					dragSelectBox.x = dragXStart;
+				}
+
+				if (dragSelectBox.graphic == null)
+				{
+					dragSelectBox.makeGraphic(Std.int(sumX), Std.int(Math.abs(sumY)), FlxColor.BLUE);
+				}
+				dragSelectBox.setGraphicSize(Std.int(Math.abs(sumX)), Std.int(Math.abs(sumY)));
+				dragSelectBox.updateHitbox();
+			}
+		}
+		else if (FlxG.mouse.justReleased && isDragging)
+		{
+			isDragging = false;
+			remove(dragSelectBox);
+			dragSelectBox.destroy();
+			dragSelectBox = null;
+		}
 	}
 
 	private function manageGrids()
@@ -167,11 +283,36 @@ class ChartingState extends RythmState
 		maxY = totalGridHeight;
 	}
 
-	private function addNote()
+	private function pasteNotes()
+	{
+		var cloned = [];
+		for (i in copiedNotes)
+		{
+			var newNote = [i[0], i[1]];
+			cloned.push(newNote);
+		}
+
+		for (i in 0...cloned.length)
+		{
+			cloneNote(cloned[i][0] + Conductor.songPos, Std.int(cloned[i][1]));
+		}
+	}
+
+	private function cloneNote(songTime:Float, data:Int)
+	{
+		var pos = mapSongPositionToY(songTime);
+		chart.notes.push([pos, data]);
+		addNoteGraphics();
+		trace('added note: ' + [pos, data]);
+	}
+
+	private function addNote(y:Float)
 	{
 		var data = Math.floor(FlxG.mouse.x / GRID_SIZE) % 4;
 		trace('raw: ' + FlxG.mouse.x / GRID_SIZE + '\nsemi-raw(floored): ' + Math.floor(FlxG.mouse.x / GRID_SIZE) + '\nunraw: ' + data);
-		var songPos = mapYToSongPosition(FlxG.mouse.y) / divisor;
+		var songPos = mapYToSongPosition(y); // / divisor;
+
+		trace("\nNOTE: " + songPos + "\nSONG: " + Conductor.songPos);
 
 		var note = [songPos, data];
 		chart.notes.push(note);
@@ -180,8 +321,19 @@ class ChartingState extends RythmState
 		return note;
 	}
 
-	private function removeNote()
+	private function removeNote(note:Note = null)
 	{
+		if (note != null)
+		{
+			for (i in chart.notes)
+			{
+				if (note.songTime == i[0] && note.data == i[1])
+				{
+					chart.notes.remove(i);
+					inline removeNoteGraphics(note);
+				}
+			}
+		}
 		noteGroup.forEachAlive(function(note:Note)
 		{
 			if (FlxG.mouse.overlaps(note))
@@ -205,7 +357,7 @@ class ChartingState extends RythmState
 		var latestNote = chart.notes[chart.notes.length - 1];
 		noteSprite = new Note(latestNote[0], latestNote[1]);
 		noteGroup.add(noteSprite);
-		noteSprite.y = mapSongPositionToY(latestNote[0] * divisor);
+		noteSprite.y = mapSongPositionToY(latestNote[0]);
 		noteSprite.x = gridGroup.members[0].x + (latestNote[1]) * GRID_SIZE;
 		// trace(latestNote + " sprite made");
 	}
