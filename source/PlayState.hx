@@ -2,6 +2,7 @@ package;
 
 import beatcode.Conductor;
 import beatcode.RythmState;
+import controls.KeyboardController;
 import data.Charts.Chart;
 import data.Charts.OldChart;
 import flixel.FlxG;
@@ -10,6 +11,7 @@ import flixel.FlxSprite;
 import flixel.FlxState;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.math.FlxMath;
+import flixel.util.FlxColor;
 import haxe.Json;
 import lime.utils.Assets;
 
@@ -22,6 +24,8 @@ typedef GameResult =
 	var goods:Int;
 	var amazings:Int;
 	var score:Int;
+	var marvelous:Int;
+	var perfects:Int;
 	var rating:String;
 }
 
@@ -42,8 +46,13 @@ class PlayState extends RythmState
 
 	public var results:GameResult;
 
+	public var health:Float = 100;
+
+	public var controls:Controller;
+
 	public function new()
 	{
+		controls = new Controller("controls");
 		super();
 		if (chart == null)
 			chart = cast Json.parse(Assets.getText('assets/data/leJson.json'));
@@ -60,6 +69,8 @@ class PlayState extends RythmState
 			goods: 0,
 			amazings: 0,
 			score: 0,
+			marvelous: 0,
+			perfects: 0,
 			rating: "Uncalculated"
 		};
 	}
@@ -106,59 +117,44 @@ class PlayState extends RythmState
 		}
 	}
 
-	// * fnf hit detection for now lmao
-	function onHit(note:Note)
+	function hitNote(note:Note)
 	{
-		var noteDiff:Float = Math.abs(note.songTime - Conductor.songPos);
-		var noteScore:Float = 300;
-		var noteRating:String = "amazing";
+		var data = -1;
+		if (controls.left_p)
+		{
+			data = 0;
+		}
+		else if (controls.down_p)
+		{
+			data = 1;
+		}
+		else if (controls.up_p)
+		{
+			data = 2;
+		}
+		else if (controls.left_p)
+		{
+			data = 3;
+		}
+		if (controls.up_p || controls.down_p || controls.left_p || controls.right_p) {}
+	}
 
-		if (noteDiff > Conductor.safeZoneOffset)
-		{
-			noteRating = "miss";
-			noteScore = -25;
-			results.misses++;
-		}
-		else if (noteDiff > Conductor.safeZoneOffset * 0.9)
-		{
-			noteRating = "shit";
-			noteScore = 10;
-			results.shits++;
-		}
-		else if (noteDiff > Conductor.safeZoneOffset * 0.75)
-		{
-			noteRating = "bad";
-			noteScore = 25;
-			results.bads++;
-		}
-		else if (noteDiff > Conductor.safeZoneOffset * 0.5)
-		{
-			noteRating = "okay";
-			noteScore = 75;
-			results.okays++;
-		}
-		else if (noteDiff > Conductor.safeZoneOffset * 0.2)
-		{
-			noteRating = "good";
-			noteScore = 150;
-			results.goods++;
-		}
-		else if (noteDiff > Conductor.safeZoneOffset * 0.1)
-		{
-			noteRating = "amazing";
-			noteScore = 300;
-			results.amazings++;
-		}
+	// * fnf hit detection for now lmao
+	function onHit(note:Note, intendedData:Int)
+	{
+		var noteDiff = Math.abs(Conductor.songPos - note.songTime);
+		var noteYDiff = Math.abs(thing.y - note.y);
 
-		score += noteScore;
-		trace('rating: ' + noteRating + '\nscore: ' + noteScore);
+		var score:Int = 0;
+		var rating:String = "uncalculated";
+		var missed:Bool = false;
 
-		if (noteRating != "miss")
-			combo++;
-		else
-			combo = 0;
-
-		FlxG.watch.addQuick("combo: ", combo);
+		if (intendedData != note.data)
+			missed = true;
+		#if debug
+		if (missed)
+			note.color = FlxColor.RED;
+		#end
 	}
 
 	public function changeState(newState:RythmState, clearChart:Bool = true)

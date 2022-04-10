@@ -41,6 +41,8 @@ class ChartingState extends RythmState
 
 	private var dragSelectBox:FlxSprite;
 
+	var selectBox:FlxSelectionBox;
+
 	public function new(chart:Chart)
 	{
 		super();
@@ -60,6 +62,8 @@ class ChartingState extends RythmState
 
 		this.chart = chart;
 	}
+
+	var placementContext:String;
 
 	override function create()
 	{
@@ -90,13 +94,51 @@ class ChartingState extends RythmState
 		minTime = 0;
 		maxTime = Conductor.songLen;
 
+		selectBox = new FlxSelectionBox();
+		add(selectBox);
+
+		selectBox.onRelease.add(function(box:FlxSelectionBox)
+		{
+			if (FlxG.mouse.overlaps(noteGroup))
+			{
+				noteGroup.forEach(function(note:Note)
+				{
+					if (FlxG.overlap(note, box))
+					{
+						selectedNotesGraphics.push(note);
+						selectedNotes.push([note.songTime, note.data]);
+					}
+				});
+			}
+		});
+
+		selectBox.onClick.add(function(box:FlxSelectionBox)
+		{
+			selectedNotes = [];
+			selectedNotesGraphics = [];
+		});
+
 		super.create();
 	}
 
+	public var selectedNotesGraphics:Array<Note>;
+	public var selectedNotes:Array<Array<Dynamic>>;
 	public var copiedNotes:Array<Array<Dynamic>> = [];
 
 	override function update(elapsed:Float)
 	{
+		noteGroup.forEachAlive(function(note:Note)
+		{
+			if (!note.isOnScreen())
+			{
+				note.kill();
+			}
+			else
+			{
+				note.revive();
+			}
+		});
+
 		strumLine.y = mapSongPositionToY(Conductor.songPos);
 
 		FlxG.sound.music.looped = true;
@@ -151,94 +193,6 @@ class ChartingState extends RythmState
 			load();
 
 		super.update(elapsed);
-
-		manageMouse();
-	}
-
-	var isDragging:Bool = false;
-	var dragXStart:Float;
-	var dragYStart:Float;
-
-	function manageMouse()
-	{
-		if (/*FlxG.keys.pressed.CONTROL &&*/ FlxG.mouse.pressed)
-		{
-			if (!isDragging)
-			{
-				dragXStart = FlxG.mouse.x;
-				dragYStart = FlxG.mouse.y;
-				isDragging = true;
-				if (dragSelectBox == null)
-				{
-					dragSelectBox = new FlxSprite(dragXStart, dragYStart);
-					if (dragSelectBox.alpha != 0.4)
-						dragSelectBox.alpha = 0.4;
-					add(dragSelectBox);
-				}
-			}
-			else
-			{
-				var dragXEnd:Float;
-				var dragYEnd:Float;
-				dragXEnd = FlxG.mouse.x;
-				dragYEnd = FlxG.mouse.y;
-
-				var sumX = dragXEnd - dragXStart;
-				var sumY = dragYEnd - dragYStart;
-
-				/*
-					if curMouseX is positive, set boxX to initMouseX, and boxWidth to curMouseX-initMouseX
-					if curMouseX is negative, set boxX to curMouseX, and boxWidth to initMouseX-curMouseX
-				 */
-
-				if (sumY < 0)
-				{
-					var dey = dragYEnd;
-					dragYEnd = dragYStart;
-					dragYStart = dey;
-					dragSelectBox.y = dragYStart;
-					trace(dragXEnd, dragXStart);
-				}
-				else
-				{
-					var dsy = dragYStart;
-					dragYStart = dragYEnd;
-					dragYEnd = dsy;
-					dragSelectBox.y = dragYStart;
-				}
-
-				if (sumX < 0)
-				{
-					trace(dragXEnd, dragXStart);
-					var dex = dragXEnd;
-					dragXEnd = dragXStart;
-					dragXStart = dex;
-					dragSelectBox.x = dragXStart;
-					trace(dragXEnd, dragXStart);
-				}
-				else
-				{
-					var dsx = dragXStart;
-					dragXStart = dragXEnd;
-					dragXEnd = dsx;
-					dragSelectBox.x = dragXStart;
-				}
-
-				if (dragSelectBox.graphic == null)
-				{
-					dragSelectBox.makeGraphic(Std.int(sumX), Std.int(Math.abs(sumY)), FlxColor.BLUE);
-				}
-				dragSelectBox.setGraphicSize(Std.int(Math.abs(sumX)), Std.int(Math.abs(sumY)));
-				dragSelectBox.updateHitbox();
-			}
-		}
-		else if (FlxG.mouse.justReleased && isDragging)
-		{
-			isDragging = false;
-			remove(dragSelectBox);
-			dragSelectBox.destroy();
-			dragSelectBox = null;
-		}
 	}
 
 	private function manageGrids()
