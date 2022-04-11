@@ -13,5 +13,6 @@ class Note extends FlxSprite
 		this.songTime = songTime;
 		this.data = data;
 		makeGraphic(40, 40);
+		y += 2000;
 	}
 }

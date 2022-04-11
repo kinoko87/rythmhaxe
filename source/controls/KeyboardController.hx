@@ -70,22 +70,24 @@ class Controller extends FlxActionSet
 
 	private function generateActions()
 	{
-		addDigitalAction(_up, Up, [UP, W], PRESSED);
-		addDigitalAction(_left, Left, [LEFT, A], PRESSED);
-		addDigitalAction(_right, Right, [RIGHT, D], PRESSED);
-		addDigitalAction(_down, Down, [DOWN, S], PRESSED);
-		addDigitalAction(_upP, Up_P, [UP, W]);
-		addDigitalAction(_leftP, Left_P, [LEFT, A]);
-		addDigitalAction(_rightP, Right_P, [RIGHT, D]);
-		addDigitalAction(_downP, Down_P, [DOWN, S]);
-		addDigitalAction(_upR, Up_R, [UP, W], JUST_RELEASED);
-		addDigitalAction(_leftR, Left_R, [LEFT, A], JUST_RELEASED);
-		addDigitalAction(_rightR, Right_R, [RIGHT, D], JUST_RELEASED);
-		addDigitalAction(_downR, Down_R, [DOWN, S], JUST_RELEASED);
-		addDigitalAction(_pauseSong, PauseSong, [SPACE], JUST_PRESSED);
-		addDigitalAction(_pauseGame, PauseGame, [ESCAPE], JUST_PRESSED);
-		addDigitalAction(_accept, Accept, [ENTER], JUST_PRESSED);
-		addDigitalAction(_back, Back, [BACKSPACE, ESCAPE], JUST_PRESSED);
+		_up = addDigitalAction(_up, Up, [UP, W], PRESSED);
+		_left = addDigitalAction(_left, Left, [LEFT, A], PRESSED);
+		_right = addDigitalAction(_right, Right, [RIGHT, D], PRESSED);
+		_down = addDigitalAction(_down, Down, [DOWN, S], PRESSED);
+		_upP = addDigitalAction(_upP, Up_P, [UP, W]);
+		_leftP = addDigitalAction(_leftP, Left_P, [LEFT, A]);
+		_rightP = addDigitalAction(_rightP, Right_P, [RIGHT, D]);
+		_downP = addDigitalAction(_downP, Down_P, [DOWN, S]);
+		_upR = addDigitalAction(_upR, Up_R, [UP, W], JUST_RELEASED);
+		_leftR = addDigitalAction(_leftR, Left_R, [LEFT, A], JUST_RELEASED);
+		_rightR = addDigitalAction(_rightR, Right_R, [RIGHT, D], JUST_RELEASED);
+		_downR = addDigitalAction(_downR, Down_R, [DOWN, S], JUST_RELEASED);
+		_pauseSong = addDigitalAction(_pauseSong, PauseSong, [SPACE], JUST_PRESSED);
+		_pauseGame = addDigitalAction(_pauseGame, PauseGame, [ESCAPE], JUST_PRESSED);
+		_accept = addDigitalAction(_accept, Accept, [ENTER], JUST_PRESSED);
+		_back = addDigitalAction(_back, Back, [BACKSPACE, ESCAPE], JUST_PRESSED);
+
+		trace(_up);
 
 		return digitalActions;
 	}
@@ -125,13 +127,14 @@ class Controller extends FlxActionSet
 			action = null;
 		}
 		action = new FlxActionDigital(name);
-		add(action);
 
 		if (keys != null && keys.length > 0)
 		{
 			for (i in keys)
 				action.addKey(i, inputState);
 		}
+
+		add(action);
 
 		return action;
 	}

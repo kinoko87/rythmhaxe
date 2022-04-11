@@ -172,6 +172,7 @@ class ChartingState extends RythmState
 
 		if (FlxG.keys.justPressed.ENTER)
 		{
+			PlayState.chart = chart;
 			FlxG.switchState(new PlayState());
 			// PlayState.chart = chart;
 		}

@@ -2,6 +2,7 @@ package;
 
 import beatcode.Conductor;
 import beatcode.RythmState;
+import charting.ChartingState;
 import controls.KeyboardController;
 import data.Charts.Chart;
 import data.Charts.OldChart;
@@ -31,7 +32,7 @@ typedef GameResult =
 
 class PlayState extends RythmState
 {
-	public static var chart:Chart;
+	public static var chart:Chart = null;
 
 	public var score:Float = 0;
 	public var combo:Int = 0;
@@ -85,7 +86,7 @@ class PlayState extends RythmState
 
 		add(noteGroup);
 
-		thing = new FlxSprite(0, 0).makeGraphic(FlxG.width, 25);
+		thing = new FlxSprite(0, 0).makeGraphic(FlxG.width, 60);
 		thing.screenCenter();
 
 		add(thing);
@@ -95,10 +96,10 @@ class PlayState extends RythmState
 		{
 			var note = new Note(i[0], i[1]);
 			noteGroup.add(note);
-			trace(note);
+			// trace(note);
 		}
 
-		trace(notes);
+		// trace(notes);
 
 		songLoaded = true;
 
@@ -107,8 +108,15 @@ class PlayState extends RythmState
 
 	override public function update(elapsed:Float)
 	{
+		super.update(elapsed);
+		controls.update();
+
+		if (FlxG.keys.justPressed.ENTER)
+			changeState(new ChartingState(null));
+
 		if (songLoaded)
 		{
+			hitNote();
 			noteGroup.forEachAlive(function(note:Note)
 			{
 				note.x = thing.x;
@@ -117,30 +125,61 @@ class PlayState extends RythmState
 		}
 	}
 
-	function hitNote(note:Note)
+	function hitNote()
 	{
-		var data = -1;
-		if (controls.left_p)
+		noteGroup.forEachAlive(function(note:Note)
 		{
-			data = 0;
-		}
-		else if (controls.down_p)
-		{
-			data = 1;
-		}
-		else if (controls.up_p)
-		{
-			data = 2;
-		}
-		else if (controls.left_p)
-		{
-			data = 3;
-		}
-		if (controls.up_p || controls.down_p || controls.left_p || controls.right_p) {}
+			var canHit:Bool = false;
+			var early:Bool = true;
+			if (note.overlaps(thing))
+			{
+				canHit = true;
+				early = false;
+			}
+
+			var lateMissCondition = note.y < thing.y * .80;
+			var earlyMissCondition = note.y < thing.y * 1.20 && note.y > thing.y * 1.22;
+
+			if (lateMissCondition)
+			{
+				trace('late miss');
+				noteMiss(note);
+			}
+
+			if (canHit)
+			{
+				switch (note.data)
+				{
+					case 0:
+						if (controls.left_p)
+						{
+							if (!earlyMissCondition)
+								noteHit(note);
+						}
+					case 1:
+						if (controls.down_p)
+						{
+							if (!earlyMissCondition)
+								noteHit(note);
+						}
+					case 2:
+						if (controls.up_p)
+						{
+							if (!earlyMissCondition)
+								noteHit(note);
+						}
+					case 3:
+						if (controls.right_p)
+						{
+							if (!earlyMissCondition)
+								noteHit(note);
+						}
+				}
+			}
+		});
 	}
 
-	// * fnf hit detection for now lmao
-	function onHit(note:Note, intendedData:Int)
+	function noteHit(note:Note)
 	{
 		var noteDiff = Math.abs(Conductor.songPos - note.songTime);
 		var noteYDiff = Math.abs(thing.y - note.y);
@@ -149,12 +188,31 @@ class PlayState extends RythmState
 		var rating:String = "uncalculated";
 		var missed:Bool = false;
 
-		if (intendedData != note.data)
-			missed = true;
-		#if debug
-		if (missed)
-			note.color = FlxColor.RED;
-		#end
+		note.kill();
+		noteGroup.remove(note);
+		note.destroy();
+
+		trace('infos:\ndiff: $noteDiff');
+	}
+
+	function noteMiss(note:Note)
+	{
+		note.kill();
+		noteGroup.remove(note, true);
+		note.destroy();
+	}
+
+	function getDataFromKeyPress()
+	{
+		if (controls.left_p)
+			return 0;
+		if (controls.down_p)
+			return 1;
+		if (controls.up_p)
+			return 2;
+		if (controls.right_p)
+			return 3;
+		return -1;
 	}
 
 	public function changeState(newState:RythmState, clearChart:Bool = true)
