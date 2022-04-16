@@ -1,6 +1,7 @@
 package;
 
 import flixel.FlxSprite;
+import flixel.util.FlxColor;
 
 class Note extends FlxSprite
 {
@@ -14,5 +15,17 @@ class Note extends FlxSprite
 		this.data = data;
 		makeGraphic(40, 40);
 		y += 2000;
+		setColorByData(data);
+	}
+
+	public function setColorByData(data:Int)
+	{
+		switch (data)
+		{
+			case 0 | 3:
+				color = FlxColor.BLUE;
+			case 1 | 2:
+				color = FlxColor.WHITE;
+		}
 	}
 }

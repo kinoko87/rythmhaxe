@@ -97,25 +97,10 @@ class ChartingState extends RythmState
 		selectBox = new FlxSelectionBox();
 		add(selectBox);
 
-		selectBox.onRelease.add(function(box:FlxSelectionBox)
-		{
-			if (FlxG.mouse.overlaps(noteGroup))
-			{
-				noteGroup.forEach(function(note:Note)
-				{
-					if (FlxG.overlap(note, box))
-					{
-						selectedNotesGraphics.push(note);
-						selectedNotes.push([note.songTime, note.data]);
-					}
-				});
-			}
-		});
-
 		selectBox.onClick.add(function(box:FlxSelectionBox)
 		{
-			selectedNotes = [];
-			selectedNotesGraphics = [];
+			// selectedNotes = [];
+			// selectedNotesGraphics = [];
 		});
 
 		super.create();
@@ -127,15 +112,33 @@ class ChartingState extends RythmState
 
 	override function update(elapsed:Float)
 	{
+		if (FlxG.mouse.justReleased && selectBox.dragging)
+		{
+			selectedNotes = [];
+			selectedNotesGraphics = [];
+			selectBox.dragging = false;
+			if (selectBox.overlaps(noteGroup))
+			{
+				for (i in noteGroup.members)
+				{
+					if (selectBox.overlaps(i))
+					{
+						selectedNotes.push([i.songTime, i.data]);
+						selectedNotesGraphics.push(i);
+					}
+				}
+			}
+		}
+
 		noteGroup.forEachAlive(function(note:Note)
 		{
 			if (!note.isOnScreen())
 			{
-				note.kill();
+				note.visible = false;
 			}
 			else
 			{
-				note.revive();
+				note.visible = true;
 			}
 		});
 
@@ -158,9 +161,6 @@ class ChartingState extends RythmState
 				Conductor.song.play();
 		}
 
-		if (FlxG.keys.pressed.V)
-			trace(Conductor.songPos);
-
 		if (FlxG.keys.pressed.W)
 		{
 			Conductor.song.time -= Conductor.stepCrochet;
@@ -175,6 +175,22 @@ class ChartingState extends RythmState
 			PlayState.chart = chart;
 			FlxG.switchState(new PlayState());
 			// PlayState.chart = chart;
+		}
+
+		if (FlxG.keys.pressed.CONTROL)
+		{
+			if (FlxG.keys.justPressed.C)
+			{
+				trace('copy');
+				copyNotes();
+			}
+			else if (FlxG.keys.justPressed.V)
+			{
+				trace('paste');
+				trace(chart.notes.length);
+				pasteNotes();
+				trace(chart.notes.length);
+			}
 		}
 
 		manageGrids();
@@ -238,27 +254,88 @@ class ChartingState extends RythmState
 		maxY = totalGridHeight;
 	}
 
-	private function pasteNotes()
+	private function cutNotes()
 	{
-		var cloned = [];
-		for (i in copiedNotes)
+		copyNotes();
+		for (i in 0...selectedNotes.length)
 		{
-			var newNote = [i[0], i[1]];
-			cloned.push(newNote);
+			var noteData = selectedNotes[i];
+			for (note in noteGroup.members)
+			{
+				if (note.songTime == noteData[0] && note.data == noteData[1])
+				{
+					removeNoteGraphics(note);
+				}
+			}
+		}
+	}
+
+	private function deleteNotes()
+	{
+		for (i in 0...selectedNotes.length)
+		{
+			var noteData = selectedNotes[i];
+			for (note in noteGroup.members)
+			{
+				if (note.songTime == noteData[0] && note.data == noteData[1])
+				{
+					removeNoteGraphics(note);
+				}
+			}
+		}
+	}
+
+	// im so sorry for this array
+	private var patterns:Array<{name:String, notes:Array<Array<Dynamic>>}>;
+
+	private var patternId:Int = 0;
+
+	private function addSelectionAsPattern(name:String = "Pattern")
+	{
+		if (name.toLowerCase() == 'pattern')
+		{
+			name += ' $patternId';
+			patternId++;
+		}
+		patterns.push({name: name, notes: selectedNotes});
+	}
+
+	var copiedSongTime:Float;
+
+	private function copyNotes()
+	{
+		copiedSongTime = Conductor.songPos;
+		trace(selectedNotes);
+		for (i in 0...selectedNotes.length)
+		{
+			copiedNotes.push([selectedNotes[i][0], selectedNotes[i][1]]);
 		}
 
-		for (i in 0...cloned.length)
+		return copiedNotes;
+	}
+
+	private function pasteNotes()
+	{
+		if (copiedNotes == null || copiedNotes.length < 1)
 		{
-			cloneNote(cloned[i][0] + Conductor.songPos, Std.int(cloned[i][1]));
+			trace('nothin to paste...');
+			return;
+		}
+		for (i in 0...copiedNotes.length)
+		{
+			var note = copiedNotes[i];
+			// var real;
+			var timeDiff = (Conductor.songPos - copiedSongTime);
+			chart.notes.push([(note[0] + timeDiff), note[1]]);
+			addNoteGraphics();
 		}
 	}
 
 	private function cloneNote(songTime:Float, data:Int)
 	{
-		var pos = mapSongPositionToY(songTime);
-		chart.notes.push([pos, data]);
+		chart.notes.push([songTime, data]);
 		addNoteGraphics();
-		trace('added note: ' + [pos, data]);
+		trace('added note: ' + [songTime, data]);
 	}
 
 	private function addNote(y:Float)
@@ -286,6 +363,7 @@ class ChartingState extends RythmState
 				{
 					chart.notes.remove(i);
 					inline removeNoteGraphics(note);
+					note.destroy();
 				}
 			}
 		}
@@ -317,9 +395,11 @@ class ChartingState extends RythmState
 		// trace(latestNote + " sprite made");
 	}
 
-	private function removeNoteGraphics(note:Note)
+	private function removeNoteGraphics(note:Note, ?destroy:Bool = true)
 	{
+		note.kill();
 		noteGroup.remove(note);
+		note.destroy();
 	}
 
 	private function mapYToSongPosition(y:Float)

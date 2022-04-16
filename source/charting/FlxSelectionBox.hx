@@ -45,12 +45,6 @@ class FlxSelectionBox extends FlxSprite
 			dragging = true;
 			dragStartX = FlxG.mouse.x;
 			dragStartY = FlxG.mouse.y;
-			onClick.dispatch(this);
-		}
-		else if (FlxG.mouse.justReleased)
-		{
-			dragging = false;
-			onRelease.dispatch(this);
 		}
 
 		if (dragging)
