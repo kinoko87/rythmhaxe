@@ -195,10 +195,13 @@ class ChartingState extends RythmState
 
 		manageGrids();
 
-		if (FlxG.keys.justPressed.E)
+		if (FlxG.keys.justPressed.E || FlxG.mouse.justPressed)
 		{
 			if (!FlxG.mouse.overlaps(noteGroup) || FlxG.mouse.overlaps(noteGroup) && FlxG.keys.pressed.CONTROL)
-				addNote(hologram.y);
+			{
+				var latestNote = addNote(hologram.y);
+				selectedNotes = [latestNote];
+			}
 			else if (FlxG.mouse.overlaps(noteGroup) && !FlxG.keys.pressed.CONTROL)
 				removeNote();
 		}
@@ -329,6 +332,27 @@ class ChartingState extends RythmState
 			chart.notes.push([(note[0] + timeDiff), note[1]]);
 			addNoteGraphics();
 		}
+	}
+
+	private function moveNotes()
+	{
+		for (sn in selectedNotes)
+		{
+			for (sng in selectedNotesGraphics)
+			{
+				if (compare(sng, sn))
+				{
+					var newNoteTime = sn[0] - Conductor.songPos;
+					sn[0] += newNoteTime;
+					sng.y = mapSongPositionToY(sn[0]);
+				}
+			}
+		}
+	}
+
+	function compare(note:Note, noteData:Array<Dynamic>)
+	{
+		return note.songTime == noteData[0] && note.data == noteData[1];
 	}
 
 	private function cloneNote(songTime:Float, data:Int)

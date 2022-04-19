@@ -40,7 +40,7 @@ class FlxSelectionBox extends FlxSprite
 
 	override public function update(elapsed:Float)
 	{
-		if (FlxG.mouse.pressed && !dragging)
+		if (FlxG.mouse.pressed && !dragging && FlxG.keys.pressed.CONTROL)
 		{
 			dragging = true;
 			dragStartX = FlxG.mouse.x;

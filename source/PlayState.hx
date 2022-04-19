@@ -1,5 +1,6 @@
 package;
 
+import Judgement.Rating;
 import beatcode.Conductor;
 import beatcode.RythmState;
 import charting.ChartingState;
@@ -140,12 +141,6 @@ class PlayState extends RythmState
 			var lateMissCondition = note.y < thing.y * .80;
 			var earlyMissCondition = note.y < thing.y * 1.20 && note.y > thing.y * 1.22;
 
-			if (lateMissCondition)
-			{
-				trace('late miss');
-				noteMiss(note);
-			}
-
 			if (canHit)
 			{
 				switch (note.data)
@@ -181,25 +176,38 @@ class PlayState extends RythmState
 
 	function noteHit(note:Note)
 	{
-		var noteDiff = Math.abs(Conductor.songPos - note.songTime);
-		var noteYDiff = Math.abs(thing.y - note.y);
+		if (getDataFromKeyPress() == note.data)
+		{
+			var timeDiff = Math.abs(Conductor.songPos - note.songTime);
 
-		var score:Int = 0;
-		var rating:String = "uncalculated";
-		var missed:Bool = false;
+			if (timeDiff >= 210)
+			{
+				noteMiss(note);
+				return;
+			}
 
-		note.kill();
-		noteGroup.remove(note);
-		note.destroy();
+			var score:Int = 0;
+			var rating:Rating = Judgement.calculate(timeDiff);
+			var missed:Bool = false;
 
-		trace('infos:\ndiff: $noteDiff');
+			trace('infos:\ndiff: $timeDiff', '\nrating: $rating');
+
+			// not really  a legit ntoe miss, just to destroy the note
+			noteMiss(note);
+		}
 	}
 
-	function noteMiss(note:Note)
+	function deleteNote(note:Note)
 	{
 		note.kill();
 		noteGroup.remove(note, true);
 		note.destroy();
+	}
+
+	function noteMiss(note:Note)
+	{
+		deleteNote(note);
+		score -= Math.abs(Conductor.songPos - note.songTime) / 3;
 	}
 
 	function getDataFromKeyPress()
