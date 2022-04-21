@@ -5,9 +5,9 @@ import sys.FileSystem;
 
 class Paths
 {
-	public static inline function ui(key:String, ?ext:String = 'png')
+	public static inline function image(key:String, ?ext:String = 'png')
 	{
-		return 'assets/images/ui/$key.$ext';
+		return 'assets/images/$key.$ext';
 	}
 
 	public static inline function cache(key:String, ?ext:String = 'json')

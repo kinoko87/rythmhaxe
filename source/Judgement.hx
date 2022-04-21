@@ -25,4 +25,10 @@ class Judgement
 
 		return Bad;
 	}
+
+	public static function score(value:Float):Float
+	{
+		var rating = calculate(value);
+		return 0;
+	}
 }

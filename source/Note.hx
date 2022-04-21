@@ -8,12 +8,21 @@ class Note extends FlxSprite
 	public var songTime:Float;
 	public var data:Int;
 
+	public var hit:Bool = false;
+	public var prevNote:Note;
+
 	public function new(songTime:Float, data:Int)
 	{
 		super(0, 0);
+
+		if (prevNote == null)
+			prevNote = this;
+
 		this.songTime = songTime;
 		this.data = data;
-		makeGraphic(40, 40);
+		loadGraphic(Paths.image('rythm_objects/arrow'));
+		setGraphicSize(40, 40);
+		antialiasing = false;
 		y += 2000;
 		setColorByData(data);
 	}

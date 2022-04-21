@@ -14,6 +14,7 @@ import flixel.FlxState;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.math.FlxMath;
 import flixel.util.FlxColor;
+import flixel.util.FlxSort;
 import haxe.Json;
 import lime.utils.Assets;
 
@@ -51,6 +52,13 @@ class PlayState extends RythmState
 	public var health:Float = 100;
 
 	public var controls:Controller;
+
+	public var despawnedNotes:Array<Note>;
+
+	var notePos0:Float;
+	var notePos1:Float;
+	var notePos2:Float;
+	var notePos3:Float;
 
 	public function new()
 	{
@@ -104,8 +112,15 @@ class PlayState extends RythmState
 
 		songLoaded = true;
 
+		notePos3 = (FlxG.width / 2) - 40 * 3;
+		notePos2 = (FlxG.width / 2) - 40 * 2;
+		notePos1 = (FlxG.width / 2) - 40 * 1;
+		notePos0 = (FlxG.width / 2) - 40 * 0;
+
 		super.create();
 	}
+
+	var sorted:Bool = false;
 
 	override public function update(elapsed:Float)
 	{
@@ -118,10 +133,44 @@ class PlayState extends RythmState
 		if (songLoaded)
 		{
 			hitNote();
+
 			noteGroup.forEachAlive(function(note:Note)
 			{
-				note.x = thing.x;
+				switch (note.data)
+				{
+					case 0:
+						note.x = notePos3;
+					case 1:
+						note.x = notePos2;
+					case 2:
+						note.x = notePos1;
+					case 3:
+						note.x = notePos0;
+				}
+
+				if (note.scale.x != 3.3 && note.scale.y != 3.3)
+					note.scale.set(3.3, 3.3);
+
 				note.y = (thing.y - (Conductor.songPos - note.songTime) * (0.45 * FlxMath.roundDecimal(chart.speed, 2)));
+
+				if (!sorted)
+				{
+					noteGroup.sort(FlxSort.byY, FlxSort.DESCENDING);
+					sorted = true;
+
+					for (note in 0...noteGroup.members.length)
+					{
+						if (note != 0)
+						{
+							var oldNote = noteGroup.members[note - 1];
+							var note = noteGroup.members[note];
+							note.prevNote = oldNote;
+							#if debug
+							note.prevNote.color = FlxColor.RED;
+							#end
+						}
+					}
+				}
 			});
 		}
 	}
@@ -138,9 +187,6 @@ class PlayState extends RythmState
 				early = false;
 			}
 
-			var lateMissCondition = note.y < thing.y * .80;
-			var earlyMissCondition = note.y < thing.y * 1.20 && note.y > thing.y * 1.22;
-
 			if (canHit)
 			{
 				switch (note.data)
@@ -148,31 +194,29 @@ class PlayState extends RythmState
 					case 0:
 						if (controls.left_p)
 						{
-							if (!earlyMissCondition)
-								noteHit(note);
+							noteHit(note);
 						}
 					case 1:
 						if (controls.down_p)
 						{
-							if (!earlyMissCondition)
-								noteHit(note);
+							noteHit(note);
 						}
 					case 2:
 						if (controls.up_p)
 						{
-							if (!earlyMissCondition)
-								noteHit(note);
+							noteHit(note);
 						}
 					case 3:
 						if (controls.right_p)
 						{
-							if (!earlyMissCondition)
-								noteHit(note);
+							noteHit(note);
 						}
 				}
 			}
 		});
 	}
+
+	var previousNote:Note;
 
 	function noteHit(note:Note)
 	{
@@ -186,22 +230,19 @@ class PlayState extends RythmState
 				return;
 			}
 
-			var score:Int = 0;
+			var score:Float = Judgement.score(timeDiff);
 			var rating:Rating = Judgement.calculate(timeDiff);
-			var missed:Bool = false;
 
 			trace('infos:\ndiff: $timeDiff', '\nrating: $rating');
 
-			// not really  a legit ntoe miss, just to destroy the note
-			noteMiss(note);
+			deleteNote(note);
 		}
 	}
 
 	function deleteNote(note:Note)
 	{
-		note.kill();
+		// note.kill();
 		noteGroup.remove(note, true);
-		note.destroy();
 	}
 
 	function noteMiss(note:Note)
@@ -220,6 +261,7 @@ class PlayState extends RythmState
 			return 2;
 		if (controls.right_p)
 			return 3;
+
 		return -1;
 	}
 
